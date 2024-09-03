@@ -1,4 +1,7 @@
-﻿using System.Collections.ObjectModel;
+﻿using Microsoft.Win32;
+using System.Collections.ObjectModel;
+using System.IO;
+using System.Text.RegularExpressions;
 using System.Windows.Input;
 
 public class AlphabetViewModel : BaseViewModel
@@ -89,13 +92,50 @@ public class AlphabetViewModel : BaseViewModel
 
     private void LoadAlphabet()
     {
-        ToStudyLetters.Clear();
-        for (char c = 'A'; c <= 'Z'; c++)
+        var openFileDialog = new OpenFileDialog
         {
-            ToStudyLetters.Add(new LetterModel { Symbol = c.ToString() });
+            Filter = "Text files (*.txt)|*.txt",
+            Title = "Select Alphabet File"
+        };
+
+        if (openFileDialog.ShowDialog() == true)
+        {
+            var filePath = openFileDialog.FileName;
+
+            var letters = File.ReadAllText(filePath);
+
+            bool containsThaiLetters = false;
+
+            foreach (var letter in letters)
+            {
+                if (IsThaiLetter(letter.ToString()))
+                {
+                    containsThaiLetters = true;
+                    break; 
+                }
+            }
+
+            ToStudyLetters.Clear();
+
+            foreach (var letter in letters)
+            {
+                if (!string.IsNullOrWhiteSpace(letter.ToString()))
+                {
+                    ToStudyLetters.Add(new LetterModel { Symbol = letter.ToString() });
+                }
+            }
+
+            MoveToNextLetter();
         }
-        MoveToNextLetter();
     }
+
+    private bool IsThaiLetter(string value)
+    {
+        // Проверка принадлежности символа к тайскому алфавиту
+        return Regex.IsMatch(value, @"^[\u0E00-\u0E7F]$");
+    }
+
+
 
     private void MoveToNextLetter()
     {
@@ -107,7 +147,7 @@ public class AlphabetViewModel : BaseViewModel
         else
         {
             CurrentLetter = null;
-            // Логика завершения, когда все буквы пройдены
+            // End of the learning logic here
         }
     }
 }

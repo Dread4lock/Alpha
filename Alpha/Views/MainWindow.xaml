@@ -7,6 +7,18 @@
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="800">
     <Grid>
+        <!-- Current letter visualization  -->
+        <TextBlock Text="{Binding CurrentLetter.Symbol}" 
+                   FontSize="48" 
+                   HorizontalAlignment="Center" 
+                   VerticalAlignment="Center" />
 
+        <!-- Buttons -->
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,30">
+            <Button Content="Upload" Command="{Binding UploadAlphabetCommand}" Margin="10" />
+            <Button Content="Got it" Command="{Binding KnowLetterCommand}" Margin="10" />
+            <Button Content="IDK" Command="{Binding DoNotKnowLetterCommand}" Margin="10" />
+            <Button Content="Download" Command="{Binding DownloadUnknownLettersCommand}" Margin="10" />
+        </StackPanel>
     </Grid>
 </Window>
