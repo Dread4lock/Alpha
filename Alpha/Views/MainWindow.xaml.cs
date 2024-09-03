@@ -19,6 +19,7 @@ namespace Alpha
         public MainWindow()
         {
             InitializeComponent();
+            DataContext = new AlphabetViewModel();
         }
     }
 }
