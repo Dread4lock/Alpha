@@ -7,6 +7,9 @@ public class LetterModel : INotifyPropertyChanged
 {
     private string _symbol;
 
+    private int _knownCount = 0;
+    public bool IsKnown { get; set; } = false;
+
     public required string Symbol
     {
         get => _symbol;
@@ -40,7 +43,15 @@ public class LetterModel : INotifyPropertyChanged
         }
     }
 
-    public bool IsKnown { get; set; } = false;
+    public int KnownCount
+    {
+        get => _knownCount;
+        set
+        {
+            _knownCount = value;
+            OnPropertyChanged();
+        }
+    }
 
     public event PropertyChangedEventHandler PropertyChanged;
 
