@@ -3,17 +3,17 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:Alpha"
+        xmlns:conv="clr-namespace:Alpha.Converters"
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="800">
     <Grid>
-        <!-- Current letter visualization  -->
+        <!-- Отображение текущей буквы -->
         <TextBlock Text="{Binding CurrentLetter.Symbol}" 
-                   FontSize="48" 
+                   FontSize="78" 
                    HorizontalAlignment="Center" 
                    VerticalAlignment="Center" />
 
-        <!-- Warning message for different alphabet letters (без иконки) -->
+        <!-- Сообщение о предупреждении -->
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="10">
             <TextBlock Text="{Binding WarningMessage}" 
                        FontWeight="Bold" 
@@ -22,11 +22,17 @@
                        Visibility="{Binding WarningVisibility}" />
         </StackPanel>
 
-        <!-- Buttons -->
+        <!-- Кнопки управления -->
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,30">
             <Button Content="Upload" Command="{Binding UploadAlphabetCommand}" Margin="10" />
-            <Button Content="Got it" Command="{Binding KnowLetterCommand}" Margin="10" />
-            <Button Content="IDK" Command="{Binding DoNotKnowLetterCommand}" Margin="10" />
+            <Button Content="Got it" 
+                    Command="{Binding KnowLetterCommand}" 
+                    Margin="10" 
+                    IsEnabled="{Binding CurrentLetter, Converter={StaticResource NullToBoolConverter}}" />
+            <Button Content="IDK" 
+                    Command="{Binding DoNotKnowLetterCommand}" 
+                    Margin="10" 
+                    IsEnabled="{Binding CurrentLetter, Converter={StaticResource NullToBoolConverter}}" />
             <Button Content="Download" Command="{Binding DownloadUnknownLettersCommand}" Margin="10" />
         </StackPanel>
     </Grid>

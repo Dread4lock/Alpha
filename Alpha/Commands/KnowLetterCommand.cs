@@ -1,27 +1,50 @@
 ﻿using System;
 using System.Windows.Input;
 
-namespace Alpha.Commands
+public class KnowLetterCommand : ICommand
 {
-    public class KnowLetterCommand : ICommand
+    private readonly AlphabetViewModel _viewModel;
+
+    public KnowLetterCommand(AlphabetViewModel viewModel)
     {
-        private readonly Action _execute;
+        _viewModel = viewModel;
+    }
 
-        public KnowLetterCommand(Action execute)
+    public event EventHandler CanExecuteChanged;
+
+    public bool CanExecute(object parameter)
+    {
+        bool canExecute = _viewModel.CurrentLetter != null;
+        Console.WriteLine("CanExecute KnowLetterCommand: " + canExecute);  // Логирование
+        return canExecute;
+    }
+
+    public void Execute(object parameter)
+    {
+        var currentLetter = _viewModel.CurrentLetter;
+        if (currentLetter != null)
         {
-            _execute = execute ?? throw new ArgumentNullException(nameof(execute));
+            Console.WriteLine("Executing KnowLetterCommand for: " + currentLetter.Symbol);
+
+            currentLetter.KnownCount++;
+
+            if (currentLetter.KnownCount >= 2)
+            {
+                _viewModel.LearnedLetters.Add(currentLetter);
+            }
+            else
+            {
+                _viewModel.ToStudyLetters.Add(currentLetter);
+            }
+
+            _viewModel.MoveToNextLetter();
         }
 
-        public event EventHandler CanExecuteChanged;
+        RaiseCanExecuteChanged();  // Обновляем доступность команды после выполнения
+    }
 
-        public bool CanExecute(object parameter)
-        {
-            return true; // Команда всегда может выполняться
-        }
-
-        public void Execute(object parameter)
-        {
-            _execute();
-        }
+    public void RaiseCanExecuteChanged()
+    {
+        CanExecuteChanged?.Invoke(this, EventArgs.Empty);
     }
 }

@@ -3,11 +3,11 @@ using System.Windows.Input;
 
 namespace Alpha.Commands
 {
-    public class DoNotKnowLetterCommand : ICommand
+    public class DownloadUnknownLettersCommand : ICommand
     {
         private readonly AlphabetViewModel _viewModel;
 
-        public DoNotKnowLetterCommand(AlphabetViewModel viewModel)
+        public DownloadUnknownLettersCommand(AlphabetViewModel viewModel)
         {
             _viewModel = viewModel;
         }
@@ -16,17 +16,14 @@ namespace Alpha.Commands
 
         public bool CanExecute(object parameter)
         {
-            bool canExecute = _viewModel.CurrentLetter != null;
-            Console.WriteLine("CanExecute DoNotKnowLetterCommand: " + canExecute);  // Логирование
-            return canExecute;
+            // Команда доступна только если алфавит был загружен
+            return _viewModel.IsAlphabetUploaded;
         }
 
         public void Execute(object parameter)
         {
-            Console.WriteLine("Executing DoNotKnowLetterCommand for: " + _viewModel.CurrentLetter?.Symbol);
-            _viewModel.DoNotKnowLetter();
-
-            RaiseCanExecuteChanged();
+            // Логика скачивания невыученных букв
+            _viewModel.CopyUnknownLetters();
         }
 
         public void RaiseCanExecuteChanged()

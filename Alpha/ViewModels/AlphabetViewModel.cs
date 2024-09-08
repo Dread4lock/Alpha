@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
-using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Input;
 
@@ -14,9 +13,11 @@ public class AlphabetViewModel : BaseViewModel
     private ObservableCollection<LetterModel> _toStudyLetters;
     private ObservableCollection<LetterModel> _learnedLetters;
     private ObservableCollection<LetterModel> _unknownLetters;
+    private bool _isAlphabetUploaded = false;
+    private string _warningMessage;
+    private Visibility _warningVisibility = Visibility.Collapsed;
 
     // Свойства для отображения предупреждения
-    private string _warningMessage;
     public string WarningMessage
     {
         get => _warningMessage;
@@ -28,7 +29,6 @@ public class AlphabetViewModel : BaseViewModel
         }
     }
 
-    private Visibility _warningVisibility = Visibility.Collapsed;
     public Visibility WarningVisibility
     {
         get => _warningVisibility;
@@ -39,27 +39,26 @@ public class AlphabetViewModel : BaseViewModel
         }
     }
 
-    public AlphabetViewModel()
+    // Свойство, указывающее, что алфавит был загружен
+    public bool IsAlphabetUploaded
     {
-        ToStudyLetters = new ObservableCollection<LetterModel>();
-        LearnedLetters = new ObservableCollection<LetterModel>();
-        UnknownLetters = new ObservableCollection<LetterModel>();
-
-        // Инициализация команд
-        KnowLetterCommand = new KnowLetterCommand(KnowLetter);
-        DoNotKnowLetterCommand = new DoNotKnowLetterCommand(DoNotKnowLetter);
-        UploadAlphabetCommand = new RelayCommand(UploadAlphabet);
-        CopyUnknownLettersCommand = new RelayCommand(CopyUnknownLetters);
+        get => _isAlphabetUploaded;
+        set
+        {
+            _isAlphabetUploaded = value;
+            OnPropertyChanged();
+        }
     }
 
-    // Свойства для работы с буквами
     public LetterModel CurrentLetter
     {
         get => _currentLetter;
         set
         {
             _currentLetter = value;
+            Console.WriteLine("CurrentLetter set: " + (_currentLetter?.Symbol ?? "null"));  // Логирование
             OnPropertyChanged();
+            RaiseCanExecuteChanged(); // Обновление доступности команд при изменении буквы
         }
     }
 
@@ -97,14 +96,29 @@ public class AlphabetViewModel : BaseViewModel
     public ICommand KnowLetterCommand { get; }
     public ICommand DoNotKnowLetterCommand { get; }
     public ICommand UploadAlphabetCommand { get; }
-    public ICommand CopyUnknownLettersCommand { get; }
+    public ICommand DownloadUnknownLettersCommand { get; }
 
-    // Логика для обработки "знания" буквы
-    private void KnowLetter()
+    public AlphabetViewModel()
+    {
+        ToStudyLetters = new ObservableCollection<LetterModel>();
+        LearnedLetters = new ObservableCollection<LetterModel>();
+        UnknownLetters = new ObservableCollection<LetterModel>();
+
+        // Инициализация команд
+        KnowLetterCommand = new KnowLetterCommand(this);
+        DoNotKnowLetterCommand = new DoNotKnowLetterCommand(this);
+        UploadAlphabetCommand = new RelayCommand(UploadAlphabet);
+        DownloadUnknownLettersCommand = new DownloadUnknownLettersCommand(this);
+
+        RaiseCanExecuteChanged();  // вызываем в конструкторе для активации команд
+    }
+
+    public void KnowLetter()
     {
         if (CurrentLetter != null)
         {
             CurrentLetter.KnownCount++;
+            Console.WriteLine("KnowLetter executed for: " + CurrentLetter.Symbol);
 
             if (CurrentLetter.KnownCount >= 2)
             {
@@ -112,25 +126,31 @@ public class AlphabetViewModel : BaseViewModel
             }
             else
             {
-                ToStudyLetters.Add(CurrentLetter); // Оставляем в списке для изучения
+                ToStudyLetters.Add(CurrentLetter);
             }
 
             MoveToNextLetter();
         }
+
+        RaiseCanExecuteChanged();
+        OnPropertyChanged(nameof(CurrentLetter));
     }
 
-    // Логика для обработки "незнания" буквы
-    private void DoNotKnowLetter()
+    public void DoNotKnowLetter()
     {
         if (CurrentLetter != null)
         {
-            CurrentLetter.KnownCount = 0; // Сбросить счетчик, если пользователь ответил неправильно
+            CurrentLetter.KnownCount = 0;
+            Console.WriteLine("DoNotKnowLetter executed for: " + CurrentLetter.Symbol);
             UnknownLetters.Add(CurrentLetter);
+
             MoveToNextLetter();
         }
+
+        RaiseCanExecuteChanged();
+        OnPropertyChanged(nameof(CurrentLetter));
     }
 
-    // Логика для загрузки алфавита
     private void UploadAlphabet()
     {
         var openFileDialog = new OpenFileDialog
@@ -150,102 +170,89 @@ public class AlphabetViewModel : BaseViewModel
                 return;
             }
 
-            // Считаем символы для каждого алфавита
-            var alphabetCounts = new Dictionary<string, int>
-        {
-            { "Thai", 0 },
-            { "Chinese", 0 },
-            { "Cyrillic", 0 }
-        };
+            // Сброс предупреждения при новой загрузке
+            WarningMessage = "";
+
+            char firstLetter = letters[0];
+            bool isThaiAlphabet = IsThaiLetter(firstLetter.ToString());
 
             foreach (var letter in letters)
             {
-                if (IsThaiLetter(letter.ToString()))
+                if (IsThaiLetter(letter.ToString()) != isThaiAlphabet)
                 {
-                    alphabetCounts["Thai"]++;
-                }
-                else if (IsChineseLetter(letter.ToString()))
-                {
-                    alphabetCounts["Chinese"]++;
-                }
-                else if (IsCyrillicLetter(letter.ToString()))
-                {
-                    alphabetCounts["Cyrillic"]++;
+                    WarningMessage = $"Not all letters belong to the same alphabet (based on {firstLetter}).";
+                    break;
                 }
             }
 
-            // Определение доминирующего алфавита
-            var mostCommonAlphabet = alphabetCounts.OrderByDescending(kv => kv.Value).FirstOrDefault();
-
-            // Если все символы принадлежат одному алфавиту, предупреждение не отображается
-            if (mostCommonAlphabet.Value == letters.Count)
-            {
-                WarningMessage = "";  // Очищаем предупреждение
-            }
-            else
-            {
-                WarningMessage = $"Not all letters belong to {mostCommonAlphabet.Key} alphabet.";
-            }
-
-            // Продолжение загрузки букв только если предупреждение не активно
-            ToStudyLetters.Clear();
-            LearnedLetters.Clear();
-            UnknownLetters.Clear();
-
-            foreach (var letter in letters)
-            {
-                ToStudyLetters.Add(new LetterModel { Symbol = letter.ToString() });
-            }
-
-            MoveToNextLetter();
+            IsAlphabetUploaded = true;
+            UpdateLetters(letters);  // Обновляем список букв
+            RaiseCanExecuteChanged();  // Обновляем команды
         }
     }
 
+    public void UpdateLetters(List<char> letters)
+    {
+        ToStudyLetters.Clear();
+        LearnedLetters.Clear();
+        UnknownLetters.Clear();
 
-    // Проверка на принадлежность к тайскому алфавиту
+        foreach (var letter in letters)
+        {
+            ToStudyLetters.Add(new LetterModel { Symbol = letter.ToString() });
+        }
+
+        if (ToStudyLetters.Count > 0)
+        {
+            CurrentLetter = ToStudyLetters[0];
+            OnPropertyChanged(nameof(CurrentLetter));
+        }
+        else
+        {
+            CurrentLetter = null;
+        }
+
+        RaiseCanExecuteChanged();
+        Console.WriteLine("UpdateLetters called"); // Логирование
+    }
+
     private bool IsThaiLetter(string value)
     {
-        return Regex.IsMatch(value, @"^[\u0E00-\u0E7F]$");
+        return System.Text.RegularExpressions.Regex.IsMatch(value, @"^[\u0E00-\u0E7F]$");
     }
 
-    // Проверка на принадлежность к китайскому алфавиту
-    private bool IsChineseLetter(string value)
-    {
-        return Regex.IsMatch(value, @"^[\u4E00-\u9FFF\u3400-\u4DBF\u20000-\u2A6DF\u2A700-\u2B73F]$");
-    }
-
-    // Проверка на принадлежность к кириллическому алфавиту
-    private bool IsCyrillicLetter(string value)
-    {
-        return Regex.IsMatch(value, @"^[\u0400-\u04FF]$");
-    }
-
-    // Переход к следующей букве
-    private void MoveToNextLetter()
+    public void MoveToNextLetter()
     {
         if (ToStudyLetters.Count > 0)
         {
             CurrentLetter = ToStudyLetters[0];
             ToStudyLetters.RemoveAt(0);
+            Console.WriteLine("MoveToNextLetter - CurrentLetter updated: " + CurrentLetter.Symbol);  // Логирование
         }
         else
         {
             CurrentLetter = null;
-            DisplayUnknownLetters(); // Показать список невыученных букв
+            DisplayUnknownLetters();
         }
+        RaiseCanExecuteChanged();
     }
 
-    // Показ списка невыученных букв (можно реализовать в UI)
     private void DisplayUnknownLetters()
     {
         // Логика для отображения списка невыученных букв
-        // Например, можно обновить UI или отобразить окно с кнопкой "Скопировать"
     }
 
-    // Копирование невыученных букв в буфер обмена
-    private void CopyUnknownLetters()
+    public void CopyUnknownLetters()
     {
         var unknownLettersText = string.Join(", ", UnknownLetters.Select(letter => letter.Symbol));
         Clipboard.SetText(unknownLettersText);
+    }
+
+    private void RaiseCanExecuteChanged()
+    {
+        Console.WriteLine("RaiseCanExecuteChanged called. CurrentLetter: " + (CurrentLetter?.Symbol ?? "null"));
+        (KnowLetterCommand as KnowLetterCommand)?.RaiseCanExecuteChanged();
+        (DoNotKnowLetterCommand as DoNotKnowLetterCommand)?.RaiseCanExecuteChanged();
+        (DownloadUnknownLettersCommand as DownloadUnknownLettersCommand)?.RaiseCanExecuteChanged();
     }
 }
